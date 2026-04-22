@@ -1,89 +1,44 @@
-# VulnHGNN: Vulnerability Detection using Graph Neural Networks
+# VulnHGNN
 
-VulnHGNN is a system designed to detect, localize, and repair software vulnerabilities using Graph Neural Networks (GNNs). It provides both a web-based UI for interactive analysis and a command-line interface (CLI) for automated pipeline execution. Additionally, it tracks carbon emissions associated with model execution.
+VulnHGNN is a tool we built to help detect, localize, and fix software vulnerabilities using Graph Neural Networks (GNNs). It comes with a web UI for when you want an interactive visual experience, as well as a command-line interface (CLI) for running automated pipelines. As a bonus, it also tracks the carbon emissions from running the models.
 
-## Features
+## What it does
+- Detects vulnerabilities automatically using PyTorch Geometric and GNNs.
+- Supports multi-label classification, meaning it can detect multiple types of vulnerabilities at once.
+- Localizes exactly where the vulnerability is in your code.
+- Features self-healing capabilities to automatically suggest and apply fixes.
+- Provides an interactive web UI built with Flask to easily visualize and fix issues.
+- Includes a full CLI pipeline to process source files and generate reports from your terminal.
+- Tracks carbon emissions using CodeCarbon to measure the environmental impact of your ML workloads.
 
-- **Automated Vulnerability Detection**: Leverages PyTorch Geometric (PyG) and GNNs to analyze code for potential vulnerabilities.
-- **Interactive Web UI**: A Flask-based frontend for visualizing, localizing, and repairing vulnerabilities.
-- **End-to-End CLI Pipeline**: A robust command-line tool (`pipeline.py`) to process source files, detect issues, and generate reports.
-- **Carbon Tracking**: Integrated with `codecarbon` to measure and report the environmental impact of your ML workloads.
+## What you need
+Make sure you have Python 3.8 or newer installed. You'll also need Windows since we use `.bat` scripts for the launchers.
 
-## Prerequisites
+## How to set it up
+1. Clone or download this repository to your machine.
+2. Open your terminal or command prompt in the project folder.
+3. Create a virtual environment by running `python -m venv venv`.
+4. Activate the environment with `venv\Scripts\activate`.
+5. Install everything you need by running `pip install -r requirements.txt`.
 
-- **Python 3.8+**
-- Git (optional, for cloning)
-- Windows OS (scripts provided are `.bat` files)
+## Getting started
 
-## Installation
+### Running the Web UI
+The easiest way to use VulnHGNN is through the web app. Just double-click the `run.bat` file in the project folder, or run `run.bat` from your command prompt. It will automatically activate your environment and start the Flask server. Once it's running, open your browser and go to http://127.0.0.1:5000.
 
-1. **Clone the repository (or navigate to the project folder):**
-   ```bash
-   cd path\to\VulnerabilityDetectionGNN
-   ```
+If you prefer doing it manually, you can activate your environment, navigate to the `src` folder, and run `python app.py`.
 
-2. **Create a virtual environment:**
-   ```bash
-   python -m venv venv
-   ```
+### Running the CLI
+If you want to process files directly from the command line, you can use the `run_pipeline.bat` script. By default, it runs a test file against our pre-trained model. 
 
-3. **Activate the virtual environment:**
-   ```bash
-   # On Windows
-   venv\Scripts\activate
-   ```
+To run it on your own files, you can manually run the pipeline like this:
+1. Activate your virtual environment.
+2. Set your python path: `set PYTHONPATH=%PYTHONPATH%;%CD%\src`
+3. Run the script: `python src\pipeline.py path\to\your_file.c --no-carbon --model results\pyg_gnn_v9\best_pyg_model.pt`
 
-4. **Install the dependencies:**
-   ```bash
-   pip install -r requirements.txt
-   ```
-
-## How to Run
-
-### 1. Web Interface (Recommended)
-
-The easiest way to start the web UI is by using the provided launcher script. This will automatically activate the virtual environment and start the Flask server.
-
-**Option A: Using the provided script (Windows)**
-Simply double-click the `run.bat` file, or run it from the command line:
-```bash
-run.bat
-```
-The server will start at `http://127.0.0.1:5000`. Open this URL in your web browser.
-
-**Option B: Manual start**
-If you prefer to start it manually:
-```bash
-venv\Scripts\activate
-cd src
-python app.py
-```
-
-### 2. Command Line Interface (Pipeline)
-
-To process a file directly through the CLI without the web interface, you can use the `run_pipeline.bat` script or run the Python script directly.
-
-**Option A: Using the provided script (Windows)**
-```bash
-run_pipeline.bat
-```
-*Note: This script is pre-configured to run `test_files\test_02_cwe190_overflow.c` against the `results\pyg_gnn_v9\best_pyg_model.pt` model.*
-
-**Option B: Manual execution with custom arguments**
-To run the pipeline on a specific file of your choice:
-```bash
-venv\Scripts\activate
-set PYTHONPATH=%PYTHONPATH%;%CD%\src
-python src\pipeline.py test_files\your_test_file.c --no-carbon --model results\pyg_gnn_v9\best_pyg_model.pt
-```
-
-## Project Structure
-
-- `src/` - Source code for the backend (Flask app, Pipeline, Models).
-- `data/` & `dataset/` - Data directories for processing graphs and models.
-- `results/` - Contains trained models (e.g., `best_pyg_model.pt`) and evaluation outputs.
-- `test_files/` - Sample code files (C/C++) used to test vulnerability detection.
-- `docs/` - Documentation.
-- `requirements.txt` - Python package dependencies.
-- `run.bat` - Quick start launcher for the web application.
-- `run_pipeline.bat` - Quick start launcher for the CLI pipeline.
+## Folder structure
+- `src/` holds the backend code like the Flask app, pipeline, and models.
+- `data/` and `dataset/` are where the graphs and datasets live.
+- `results/` is where trained models and outputs are saved.
+- `test_files/` has some sample code you can use for testing.
+- `docs/` contains extra documentation.
