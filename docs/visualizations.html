@@ -1,0 +1,1554 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VulnHGNN — System Visualizations</title>
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-primary: #0a0e1a;
+            --bg-secondary: #111827;
+            --bg-card: #1a2035;
+            --bg-card-hover: #1f2a45;
+            --border: #2a3555;
+            --text-primary: #e8eaf6;
+            --text-secondary: #8892b0;
+            --text-muted: #5a6380;
+            --accent-cyan: #00e5ff;
+            --accent-blue: #448aff;
+            --accent-purple: #b388ff;
+            --accent-pink: #ff80ab;
+            --accent-green: #69f0ae;
+            --accent-orange: #ffab40;
+            --accent-red: #ff5252;
+            --accent-yellow: #ffd740;
+            --glow-cyan: rgba(0, 229, 255, 0.15);
+            --glow-blue: rgba(68, 138, 255, 0.15);
+            --gradient-1: linear-gradient(135deg, #00e5ff, #448aff);
+            --gradient-2: linear-gradient(135deg, #b388ff, #ff80ab);
+            --gradient-3: linear-gradient(135deg, #69f0ae, #00e5ff);
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Inter', -apple-system, sans-serif;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+
+        /* Animated background grid */
+        body::before {
+            content: '';
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background-image:
+                linear-gradient(rgba(0,229,255,0.03) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(0,229,255,0.03) 1px, transparent 1px);
+            background-size: 60px 60px;
+            z-index: 0;
+            pointer-events: none;
+        }
+
+        .hero {
+            position: relative;
+            text-align: center;
+            padding: 60px 20px 40px;
+            z-index: 1;
+        }
+
+        .hero::after {
+            content: '';
+            position: absolute;
+            top: 0; left: 50%;
+            transform: translateX(-50%);
+            width: 600px; height: 600px;
+            background: radial-gradient(circle, rgba(0,229,255,0.08) 0%, transparent 70%);
+            pointer-events: none;
+        }
+
+        .hero h1 {
+            font-size: 3rem;
+            font-weight: 900;
+            letter-spacing: -1px;
+            background: var(--gradient-1);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 12px;
+        }
+
+        .hero p {
+            font-size: 1.1rem;
+            color: var(--text-secondary);
+            max-width: 700px;
+            margin: 0 auto;
+            line-height: 1.7;
+        }
+
+        .badge {
+            display: inline-block;
+            padding: 4px 14px;
+            border-radius: 20px;
+            font-size: 0.7rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
+            margin-bottom: 16px;
+            background: rgba(0,229,255,0.1);
+            color: var(--accent-cyan);
+            border: 1px solid rgba(0,229,255,0.2);
+        }
+
+        /* Navigation tabs */
+        .nav-tabs {
+            display: flex;
+            justify-content: center;
+            gap: 8px;
+            padding: 0 20px 40px;
+            flex-wrap: wrap;
+            position: relative;
+            z-index: 2;
+        }
+
+        .nav-tab {
+            padding: 10px 22px;
+            border-radius: 12px;
+            font-size: 0.82rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            border: 1px solid var(--border);
+            background: var(--bg-card);
+            color: var(--text-secondary);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .nav-tab:hover {
+            border-color: var(--accent-cyan);
+            color: var(--accent-cyan);
+            transform: translateY(-2px);
+            box-shadow: 0 4px 20px rgba(0,229,255,0.1);
+        }
+
+        .nav-tab.active {
+            background: linear-gradient(135deg, rgba(0,229,255,0.15), rgba(68,138,255,0.15));
+            border-color: var(--accent-cyan);
+            color: var(--accent-cyan);
+            box-shadow: 0 4px 30px rgba(0,229,255,0.15);
+        }
+
+        .nav-tab .tab-num {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            line-height: 20px;
+            text-align: center;
+            border-radius: 50%;
+            background: rgba(0,229,255,0.15);
+            font-size: 0.7rem;
+            margin-right: 6px;
+        }
+
+        /* Sections */
+        .viz-section {
+            display: none;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 20px 60px;
+            position: relative;
+            z-index: 1;
+        }
+
+        .viz-section.active { display: block; }
+
+        .section-header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        .section-header h2 {
+            font-size: 1.8rem;
+            font-weight: 800;
+            margin-bottom: 8px;
+            color: var(--text-primary);
+        }
+
+        .section-header p {
+            color: var(--text-secondary);
+            font-size: 0.95rem;
+            max-width: 600px;
+            margin: 0 auto;
+        }
+
+        /* Cards */
+        .card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            padding: 30px;
+            margin-bottom: 24px;
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .card::before {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; right: 0;
+            height: 2px;
+            background: var(--gradient-1);
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+
+        .card:hover::before { opacity: 1; }
+
+        .card:hover {
+            border-color: rgba(0,229,255,0.3);
+            box-shadow: 0 8px 40px rgba(0,229,255,0.06);
+        }
+
+        .card-title {
+            font-size: 1rem;
+            font-weight: 700;
+            margin-bottom: 6px;
+            color: var(--text-primary);
+        }
+
+        .card-subtitle {
+            font-size: 0.8rem;
+            color: var(--text-muted);
+            margin-bottom: 20px;
+        }
+
+        /* SVG styles */
+        svg { width: 100%; }
+
+        .graph-container {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 500px;
+        }
+
+        /* Tooltip */
+        .tooltip {
+            position: absolute;
+            padding: 10px 16px;
+            background: rgba(26, 32, 53, 0.95);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            font-size: 0.78rem;
+            color: var(--text-primary);
+            pointer-events: none;
+            z-index: 100;
+            backdrop-filter: blur(12px);
+            box-shadow: 0 8px 32px rgba(0,0,0,0.3);
+            transition: opacity 0.2s ease;
+        }
+
+        .tooltip .label { color: var(--text-muted); font-size: 0.7rem; }
+        .tooltip .value { font-weight: 600; font-family: 'JetBrains Mono', monospace; }
+
+        /* Legend */
+        .legend {
+            display: flex;
+            gap: 20px;
+            justify-content: center;
+            margin-top: 16px;
+            flex-wrap: wrap;
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 0.78rem;
+            color: var(--text-secondary);
+        }
+
+        .legend-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+        }
+
+        /* Comparison grid */
+        .comparison-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 24px;
+        }
+
+        @media (max-width: 768px) {
+            .comparison-grid { grid-template-columns: 1fr; }
+            .hero h1 { font-size: 2rem; }
+            .nav-tabs { gap: 4px; }
+            .nav-tab { padding: 8px 14px; font-size: 0.75rem; }
+        }
+
+        /* Pipeline flowchart */
+        .pipeline-node {
+            cursor: pointer;
+            transition: filter 0.2s ease;
+        }
+        .pipeline-node:hover {
+            filter: brightness(1.2);
+        }
+
+        /* Metric cards for comparison */
+        .metric-cards {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 16px;
+            margin-bottom: 24px;
+        }
+
+        .metric-card {
+            background: rgba(0,229,255,0.04);
+            border: 1px solid rgba(0,229,255,0.12);
+            border-radius: 12px;
+            padding: 18px;
+            text-align: center;
+        }
+
+        .metric-card .metric-value {
+            font-size: 1.8rem;
+            font-weight: 800;
+            font-family: 'JetBrains Mono', monospace;
+            background: var(--gradient-1);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .metric-card .metric-label {
+            font-size: 0.72rem;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-top: 4px;
+        }
+
+        /* Feedback loop */
+        .loop-stage {
+            transition: all 0.3s ease;
+        }
+
+        .loop-stage:hover {
+            filter: brightness(1.3) drop-shadow(0 0 8px rgba(0,229,255,0.3));
+        }
+
+        /* Animated pulse */
+        @keyframes pulse {
+            0%, 100% { opacity: 0.6; }
+            50% { opacity: 1; }
+        }
+
+        .pulse { animation: pulse 2s infinite; }
+
+        @keyframes dash {
+            to { stroke-dashoffset: -20; }
+        }
+
+        .animated-dash {
+            animation: dash 1s linear infinite;
+        }
+
+        /* Bar chart axis */
+        .axis text {
+            fill: var(--text-secondary);
+            font-family: 'Inter', sans-serif;
+            font-size: 11px;
+        }
+
+        .axis line, .axis path {
+            stroke: var(--border);
+        }
+
+        .grid line {
+            stroke: rgba(42,53,85,0.5);
+            stroke-dasharray: 3,3;
+        }
+
+        .grid path { stroke: none; }
+
+        /* Subgraph nodes */
+        .node-label {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 10px;
+            fill: var(--text-secondary);
+        }
+    </style>
+</head>
+<body>
+
+<!-- Hero -->
+<div class="hero">
+    <div class="badge">Research Visualizations</div>
+    <h1>VulnHGNN System Diagrams</h1>
+    <p>Interactive visualizations of the Vulnerability Detection &amp; Self-Healing GNN pipeline — node importance, repair comparison, system architecture, and performance benchmarks.</p>
+</div>
+
+<!-- Navigation -->
+<div class="nav-tabs">
+    <div class="nav-tab active" onclick="showSection(0)"><span class="tab-num">1</span>Node Heatmap</div>
+    <div class="nav-tab" onclick="showSection(1)"><span class="tab-num">2</span>Repair Comparison</div>
+    <div class="nav-tab" onclick="showSection(2)"><span class="tab-num">3</span>Pipeline Flowchart</div>
+    <div class="nav-tab" onclick="showSection(3)"><span class="tab-num">4</span>Feedback Loop</div>
+    <div class="nav-tab" onclick="showSection(4)"><span class="tab-num">5</span>Baseline Comparison</div>
+</div>
+
+<!-- Tooltip -->
+<div class="tooltip" id="tooltip" style="opacity:0;"></div>
+
+<!-- ═══════════════════════════════════════════════════════════════════
+     SECTION 1: Node Importance Heatmap
+     ═══════════════════════════════════════════════════════════════════ -->
+<div class="viz-section active" id="section-0">
+    <div class="section-header">
+        <h2>Node Importance Heatmap</h2>
+        <p>Attention weights and gradient-based scores overlaid on the heterogeneous program graph (CFG + DFG edges)</p>
+    </div>
+    <div class="card">
+        <div class="card-title">Attention × Gradient Importance — CWE-190 (Integer Overflow)</div>
+        <div class="card-subtitle">Node color = combined importance score | Node size = attention weight | Hover for details</div>
+        <div class="graph-container" id="heatmap-graph"></div>
+        <div class="legend">
+            <div class="legend-item"><div class="legend-dot" style="background:#1a237e"></div>Low importance (0.0)</div>
+            <div class="legend-item"><div class="legend-dot" style="background:#ff6f00"></div>Medium (0.5)</div>
+            <div class="legend-item"><div class="legend-dot" style="background:#ff1744"></div>High importance (1.0)</div>
+            <div class="legend-item"><div class="legend-dot" style="background:transparent; border:2px solid #00e5ff; width:8px; height:8px;"></div>CFG edge</div>
+            <div class="legend-item"><div class="legend-dot" style="background:transparent; border:2px dashed #b388ff; width:8px; height:8px;"></div>DFG edge</div>
+        </div>
+    </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════════
+     SECTION 2: Before vs After Repair
+     ═══════════════════════════════════════════════════════════════════ -->
+<div class="viz-section" id="section-1">
+    <div class="section-header">
+        <h2>Before vs After Repair</h2>
+        <p>Subgraph extraction around vulnerable nodes, showing how IR-level patches remove vulnerability patterns</p>
+    </div>
+    <div class="comparison-grid">
+        <div class="card">
+            <div class="card-title" style="color:#ff5252;">⚠ Before Repair — Vulnerable Subgraph</div>
+            <div class="card-subtitle">CWE-190 Integer Overflow detected in arithmetic operation</div>
+            <div id="before-graph" style="min-height:420px;"></div>
+        </div>
+        <div class="card">
+            <div class="card-title" style="color:#69f0ae;">✔ After Repair — Patched Subgraph</div>
+            <div class="card-subtitle">Overflow check guard inserted before arithmetic operation</div>
+            <div id="after-graph" style="min-height:420px;"></div>
+        </div>
+    </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════════
+     SECTION 3: Pipeline Flowchart
+     ═══════════════════════════════════════════════════════════════════ -->
+<div class="viz-section" id="section-2">
+    <div class="section-header">
+        <h2>Full System Pipeline</h2>
+        <p>End-to-end VulnHGNN architecture from C/C++ source to validated, patched LLVM IR output</p>
+    </div>
+    <div class="card">
+        <div class="card-title">VulnHGNN Pipeline Architecture (§11)</div>
+        <div class="card-subtitle">Hover over each stage for details</div>
+        <div id="pipeline-chart" style="min-height:700px;"></div>
+    </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════════
+     SECTION 4: Feedback Loop
+     ═══════════════════════════════════════════════════════════════════ -->
+<div class="viz-section" id="section-3">
+    <div class="section-header">
+        <h2>Iterative Self-Healing Loop</h2>
+        <p>Detect → Localize → Repair → Validate cycle with convergence tracking</p>
+    </div>
+    <div class="card">
+        <div class="card-title">Self-Healing Feedback Loop</div>
+        <div class="card-subtitle">The system iterates until all vulnerabilities are resolved (max 5 iterations)</div>
+        <div id="feedback-loop" style="min-height:550px;"></div>
+    </div>
+    <div class="card">
+        <div class="card-title">Convergence Over Iterations</div>
+        <div class="card-subtitle">Vulnerability count and confidence score across healing iterations</div>
+        <div id="convergence-chart" style="min-height:320px;"></div>
+    </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════════
+     SECTION 5: Baseline Comparison
+     ═══════════════════════════════════════════════════════════════════ -->
+<div class="viz-section" id="section-4">
+    <div class="section-header">
+        <h2>VulnHGNN vs Baseline Methods</h2>
+        <p>Performance comparison across accuracy, energy consumption, and carbon emissions</p>
+    </div>
+    <div class="metric-cards">
+        <div class="metric-card">
+            <div class="metric-value">94.2%</div>
+            <div class="metric-label">Detection Accuracy</div>
+        </div>
+        <div class="metric-card">
+            <div class="metric-value">91.8%</div>
+            <div class="metric-label">F1 Score</div>
+        </div>
+        <div class="metric-card">
+            <div class="metric-value">0.031</div>
+            <div class="metric-label">kWh Energy</div>
+        </div>
+        <div class="metric-card">
+            <div class="metric-value">12.4g</div>
+            <div class="metric-label">CO₂ Emissions</div>
+        </div>
+    </div>
+    <div class="card">
+        <div class="card-title">Detection Accuracy &amp; F1 Score</div>
+        <div class="card-subtitle">Grouped bar chart comparing detection performance across methods</div>
+        <div id="accuracy-chart" style="min-height:380px;"></div>
+    </div>
+    <div class="comparison-grid">
+        <div class="card">
+            <div class="card-title">Energy Consumption (kWh)</div>
+            <div class="card-subtitle">Per-analysis run energy cost</div>
+            <div id="energy-chart" style="min-height:320px;"></div>
+        </div>
+        <div class="card">
+            <div class="card-title">CO₂ Emissions (grams)</div>
+            <div class="card-subtitle">Carbon footprint per analysis run</div>
+            <div id="emissions-chart" style="min-height:320px;"></div>
+        </div>
+    </div>
+</div>
+
+<script>
+// ═══════════════════════════════════════════════════════════════════
+// GLOBAL HELPERS
+// ═══════════════════════════════════════════════════════════════════
+const tooltip = d3.select('#tooltip');
+
+function showTooltip(evt, html) {
+    tooltip.html(html)
+        .style('opacity', 1)
+        .style('left', (evt.pageX + 14) + 'px')
+        .style('top', (evt.pageY - 14) + 'px');
+}
+
+function hideTooltip() {
+    tooltip.style('opacity', 0);
+}
+
+function showSection(idx) {
+    document.querySelectorAll('.viz-section').forEach((s, i) => {
+        s.classList.toggle('active', i === idx);
+    });
+    document.querySelectorAll('.nav-tab').forEach((t, i) => {
+        t.classList.toggle('active', i === idx);
+    });
+    // Lazy render
+    if (idx === 0 && !window._heatmapRendered) { renderHeatmap(); window._heatmapRendered = true; }
+    if (idx === 1 && !window._repairRendered) { renderRepairComparison(); window._repairRendered = true; }
+    if (idx === 2 && !window._pipelineRendered) { renderPipeline(); window._pipelineRendered = true; }
+    if (idx === 3 && !window._loopRendered) { renderFeedbackLoop(); renderConvergence(); window._loopRendered = true; }
+    if (idx === 4 && !window._baselineRendered) { renderBaselineComparison(); window._baselineRendered = true; }
+}
+
+// Heatmap color scale (dark blue → orange → red)
+const heatColor = d3.scaleSequential()
+    .domain([0, 1])
+    .interpolator(d3.interpolateRgbBasis(['#1a237e', '#1565c0', '#ff6f00', '#ff3d00', '#ff1744']));
+
+// ═══════════════════════════════════════════════════════════════════
+// 1. NODE IMPORTANCE HEATMAP
+// ═══════════════════════════════════════════════════════════════════
+function renderHeatmap() {
+    const width = 900, height = 520;
+    const svg = d3.select('#heatmap-graph').append('svg')
+        .attr('viewBox', `0 0 ${width} ${height}`)
+        .attr('preserveAspectRatio', 'xMidYMid meet');
+
+    // Synthetic graph data — LLVM IR instructions as nodes
+    const nodeLabels = [
+        '%entry', '%1 = load i32*', '%2 = add nsw i32', '%3 = icmp sgt',
+        'br i1 %3', '%4 = mul nsw i32', '%5 = store i32', '%6 = getelementptr',
+        '%7 = load i32', '%ret = add i32', '%8 = sext i32', '%9 = call @malloc',
+        '%10 = bitcast', '%11 = store i32*', '%12 = load i32', '%13 = sub nsw i32',
+        '%14 = icmp eq', 'br i1 %14', '%15 = phi i32', 'ret i32 %ret'
+    ];
+
+    const nodes = nodeLabels.map((label, i) => ({
+        id: i,
+        label: label,
+        attention: Math.random() * 0.5 + (i === 2 || i === 5 || i === 9 ? 0.5 : 0),
+        gradient: Math.random() * 0.4 + ([2,5,9,10].includes(i) ? 0.55 : 0),
+        type: i < 5 ? 'cfg' : i < 12 ? 'dfg' : 'cfg',
+    }));
+
+    // Combined importance
+    nodes.forEach(n => {
+        n.importance = Math.min(1, n.attention * 0.55 + n.gradient * 0.45);
+    });
+
+    // Edges — CFG and DFG
+    const edges = [
+        {s:0,t:1,type:'cfg'},{s:1,t:2,type:'cfg'},{s:2,t:3,type:'cfg'},
+        {s:3,t:4,type:'cfg'},{s:4,t:5,type:'cfg'},{s:4,t:12,type:'cfg'},
+        {s:5,t:6,type:'cfg'},{s:6,t:7,type:'cfg'},{s:7,t:8,type:'cfg'},
+        {s:8,t:9,type:'cfg'},{s:9,t:19,type:'cfg'},{s:12,t:13,type:'cfg'},
+        {s:13,t:14,type:'cfg'},{s:14,t:15,type:'cfg'},{s:15,t:16,type:'cfg'},
+        {s:16,t:17,type:'cfg'},{s:17,t:18,type:'cfg'},{s:18,t:19,type:'cfg'},
+        {s:1,t:5,type:'dfg'},{s:2,t:9,type:'dfg'},{s:7,t:10,type:'dfg'},
+        {s:8,t:11,type:'dfg'},{s:5,t:10,type:'dfg'},{s:1,t:8,type:'dfg'},
+        {s:12,t:15,type:'dfg'},{s:13,t:18,type:'dfg'},
+    ];
+
+    // Force simulation
+    const sim = d3.forceSimulation(nodes)
+        .force('link', d3.forceLink(edges.map(e => ({source: e.s, target: e.t}))).id(d => d.id).distance(70))
+        .force('charge', d3.forceManyBody().strength(-200))
+        .force('center', d3.forceCenter(width / 2, height / 2))
+        .force('collision', d3.forceCollide().radius(28))
+        .stop();
+
+    for (let i = 0; i < 300; i++) sim.tick();
+
+    // Glow filter
+    const defs = svg.append('defs');
+    const glow = defs.append('filter').attr('id', 'glow-heatmap');
+    glow.append('feGaussianBlur').attr('stdDeviation', '4').attr('result', 'blur');
+    glow.append('feMerge').selectAll('feMergeNode').data(['blur', 'SourceGraphic'])
+        .join('feMergeNode').attr('in', d => d);
+
+    // Draw edges
+    svg.selectAll('.edge')
+        .data(edges)
+        .join('line')
+        .attr('x1', d => nodes[d.s].x).attr('y1', d => nodes[d.s].y)
+        .attr('x2', d => nodes[d.t].x).attr('y2', d => nodes[d.t].y)
+        .attr('stroke', d => d.type === 'cfg' ? '#00e5ff' : '#b388ff')
+        .attr('stroke-opacity', d => d.type === 'cfg' ? 0.35 : 0.25)
+        .attr('stroke-width', d => d.type === 'cfg' ? 1.5 : 1)
+        .attr('stroke-dasharray', d => d.type === 'dfg' ? '5,4' : 'none');
+
+    // Draw nodes
+    const nodeG = svg.selectAll('.node')
+        .data(nodes)
+        .join('g')
+        .attr('transform', d => `translate(${d.x},${d.y})`);
+
+    // Outer glow for high importance
+    nodeG.filter(d => d.importance > 0.6)
+        .append('circle')
+        .attr('r', d => 10 + d.attention * 20)
+        .attr('fill', d => heatColor(d.importance))
+        .attr('opacity', 0.15)
+        .attr('filter', 'url(#glow-heatmap)');
+
+    nodeG.append('circle')
+        .attr('r', d => 6 + d.attention * 14)
+        .attr('fill', d => heatColor(d.importance))
+        .attr('stroke', d => d.importance > 0.7 ? '#fff' : 'rgba(255,255,255,0.15)')
+        .attr('stroke-width', d => d.importance > 0.7 ? 2 : 0.5)
+        .attr('cursor', 'pointer')
+        .on('mouseover', function(evt, d) {
+            d3.select(this).attr('stroke', '#fff').attr('stroke-width', 2.5);
+            showTooltip(evt, `
+                <div style="margin-bottom:4px;font-weight:700;color:#00e5ff;">${d.label}</div>
+                <div class="label">Attention Weight</div>
+                <div class="value" style="color:#ffab40;">${d.attention.toFixed(4)}</div>
+                <div class="label" style="margin-top:4px;">Gradient Score</div>
+                <div class="value" style="color:#b388ff;">${d.gradient.toFixed(4)}</div>
+                <div class="label" style="margin-top:4px;">Combined Importance</div>
+                <div class="value" style="color:${d.importance > 0.7 ? '#ff1744' : '#69f0ae'};">${d.importance.toFixed(4)}</div>
+            `);
+        })
+        .on('mousemove', (evt) => {
+            tooltip.style('left', (evt.pageX + 14) + 'px').style('top', (evt.pageY - 14) + 'px');
+        })
+        .on('mouseout', function(evt, d) {
+            d3.select(this).attr('stroke', d.importance > 0.7 ? '#fff' : 'rgba(255,255,255,0.15)')
+                .attr('stroke-width', d.importance > 0.7 ? 2 : 0.5);
+            hideTooltip();
+        });
+
+    // Labels for high-importance nodes
+    nodeG.filter(d => d.importance > 0.5)
+        .append('text')
+        .attr('class', 'node-label')
+        .attr('dy', d => -(10 + d.attention * 14) - 5)
+        .attr('text-anchor', 'middle')
+        .text(d => d.label)
+        .attr('fill', d => d.importance > 0.7 ? '#ffd740' : '#8892b0')
+        .attr('font-size', '9px');
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// 2. BEFORE vs AFTER REPAIR
+// ═══════════════════════════════════════════════════════════════════
+function renderRepairComparison() {
+    renderSubgraph('#before-graph', 'before');
+    renderSubgraph('#after-graph', 'after');
+}
+
+function renderSubgraph(container, mode) {
+    const width = 500, height = 400;
+    const svg = d3.select(container).append('svg')
+        .attr('viewBox', `0 0 ${width} ${height}`)
+        .attr('preserveAspectRatio', 'xMidYMid meet');
+
+    const defs = svg.append('defs');
+    const glow = defs.append('filter').attr('id', `glow-${mode}`);
+    glow.append('feGaussianBlur').attr('stdDeviation', '3').attr('result', 'blur');
+    glow.append('feMerge').selectAll('feMergeNode').data(['blur', 'SourceGraphic'])
+        .join('feMergeNode').attr('in', d => d);
+
+    // Arrow marker
+    defs.append('marker')
+        .attr('id', `arrow-${mode}`)
+        .attr('viewBox', '0 -5 10 10')
+        .attr('refX', 20).attr('refY', 0)
+        .attr('markerWidth', 6).attr('markerHeight', 6)
+        .attr('orient', 'auto')
+        .append('path')
+        .attr('d', 'M0,-5L10,0L0,5')
+        .attr('fill', mode === 'before' ? 'rgba(255,82,82,0.5)' : 'rgba(105,240,174,0.5)');
+
+    const beforeNodes = [
+        { id: 0, label: '%1 = load i32* %ptr', status: 'safe', x: 250, y: 40 },
+        { id: 1, label: '%2 = add nsw i32 %1, 100', status: 'vuln', x: 250, y: 110 },
+        { id: 2, label: '%3 = mul nsw i32 %2, %1', status: 'vuln', x: 250, y: 180 },
+        { id: 3, label: 'store i32 %3, i32* %out', status: 'vuln', x: 250, y: 250 },
+        { id: 4, label: 'br label %next', status: 'safe', x: 250, y: 320 },
+    ];
+
+    const afterNodes = [
+        { id: 0, label: '%1 = load i32* %ptr', status: 'safe', x: 250, y: 30 },
+        { id: 1, label: '%2 = add nsw i32 %1, 100', status: 'patched', x: 250, y: 80 },
+        { id: 5, label: '%g = icmp sgt i32 %2, 2147483547', status: 'guard', x: 250, y: 130 },
+        { id: 6, label: 'br i1 %g, label %safe, %overflow', status: 'guard', x: 250, y: 180 },
+        { id: 2, label: '%3 = mul nsw i32 %2, %1', status: 'patched', x: 250, y: 240 },
+        { id: 3, label: 'store i32 %3, i32* %out', status: 'patched', x: 250, y: 300 },
+        { id: 4, label: 'br label %next', status: 'safe', x: 250, y: 360 },
+    ];
+
+    const nodes = mode === 'before' ? beforeNodes : afterNodes;
+    const edges = [];
+    for (let i = 0; i < nodes.length - 1; i++) {
+        edges.push({ source: i, target: i + 1 });
+    }
+
+    const statusColors = {
+        safe: { fill: 'rgba(68,138,255,0.12)', stroke: '#448aff', text: '#90caf9' },
+        vuln: { fill: 'rgba(255,82,82,0.15)', stroke: '#ff5252', text: '#ff8a80' },
+        patched: { fill: 'rgba(105,240,174,0.12)', stroke: '#69f0ae', text: '#b9f6ca' },
+        guard: { fill: 'rgba(255,215,64,0.12)', stroke: '#ffd740', text: '#fff9c4' },
+    };
+
+    // Draw edges
+    svg.selectAll('.edge')
+        .data(edges)
+        .join('line')
+        .attr('x1', d => nodes[d.source].x).attr('y1', d => nodes[d.source].y + 16)
+        .attr('x2', d => nodes[d.target].x).attr('y2', d => nodes[d.target].y - 16)
+        .attr('stroke', mode === 'before' ? 'rgba(255,82,82,0.3)' : 'rgba(105,240,174,0.3)')
+        .attr('stroke-width', 1.5)
+        .attr('marker-end', `url(#arrow-${mode})`);
+
+    // Draw node rects
+    const nodeG = svg.selectAll('.node')
+        .data(nodes)
+        .join('g')
+        .attr('transform', d => `translate(${d.x}, ${d.y})`);
+
+    nodeG.append('rect')
+        .attr('x', -190).attr('y', -14)
+        .attr('width', 380).attr('height', 28)
+        .attr('rx', 6)
+        .attr('fill', d => statusColors[d.status].fill)
+        .attr('stroke', d => statusColors[d.status].stroke)
+        .attr('stroke-width', d => d.status === 'vuln' || d.status === 'guard' ? 1.5 : 0.8)
+        .attr('filter', d => d.status === 'vuln' || d.status === 'guard' ? `url(#glow-${mode})` : 'none');
+
+    // Status indicator
+    nodeG.append('circle')
+        .attr('cx', -175).attr('cy', 0).attr('r', 4)
+        .attr('fill', d => statusColors[d.status].stroke);
+
+    nodeG.append('text')
+        .attr('text-anchor', 'middle')
+        .attr('dy', 4)
+        .attr('fill', d => statusColors[d.status].text)
+        .attr('font-family', "'JetBrains Mono', monospace")
+        .attr('font-size', '10.5px')
+        .text(d => d.label);
+
+    // Vuln / Guard labels
+    nodeG.filter(d => d.status === 'vuln')
+        .append('text')
+        .attr('x', 200).attr('dy', 4)
+        .attr('fill', '#ff5252')
+        .attr('font-size', '9px')
+        .attr('font-weight', 600)
+        .text('⚠ VULN');
+
+    nodeG.filter(d => d.status === 'guard')
+        .append('text')
+        .attr('x', 200).attr('dy', 4)
+        .attr('fill', '#ffd740')
+        .attr('font-size', '9px')
+        .attr('font-weight', 600)
+        .text('🛡 GUARD');
+
+    nodeG.filter(d => d.status === 'patched')
+        .append('text')
+        .attr('x', 200).attr('dy', 4)
+        .attr('fill', '#69f0ae')
+        .attr('font-size', '9px')
+        .attr('font-weight', 600)
+        .text('✔ SAFE');
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// 3. PIPELINE FLOWCHART
+// ═══════════════════════════════════════════════════════════════════
+function renderPipeline() {
+    const width = 1050, height = 720;
+    const svg = d3.select('#pipeline-chart').append('svg')
+        .attr('viewBox', `0 0 ${width} ${height}`)
+        .attr('preserveAspectRatio', 'xMidYMid meet');
+
+    const defs = svg.append('defs');
+
+    // Gradients for each stage category
+    const gradients = [
+        { id: 'grad-input', colors: ['#448aff', '#1565c0'] },
+        { id: 'grad-ir', colors: ['#00e5ff', '#0097a7'] },
+        { id: 'grad-graph', colors: ['#b388ff', '#7c4dff'] },
+        { id: 'grad-model', colors: ['#ff80ab', '#f50057'] },
+        { id: 'grad-localize', colors: ['#ffab40', '#ff6d00'] },
+        { id: 'grad-repair', colors: ['#69f0ae', '#00c853'] },
+        { id: 'grad-validate', colors: ['#ffd740', '#ffc107'] },
+        { id: 'grad-output', colors: ['#00e5ff', '#448aff'] },
+        { id: 'grad-carbon', colors: ['#a5d6a7', '#66bb6a'] },
+    ];
+
+    gradients.forEach(g => {
+        const lg = defs.append('linearGradient').attr('id', g.id).attr('x1','0%').attr('y1','0%').attr('x2','100%').attr('y2','100%');
+        lg.append('stop').attr('offset', '0%').attr('stop-color', g.colors[0]);
+        lg.append('stop').attr('offset', '100%').attr('stop-color', g.colors[1]);
+    });
+
+    // Glow filter
+    const glow = defs.append('filter').attr('id', 'glow-pipe');
+    glow.append('feGaussianBlur').attr('stdDeviation', '3').attr('result', 'blur');
+    glow.append('feMerge').selectAll('feMergeNode').data(['blur', 'SourceGraphic'])
+        .join('feMergeNode').attr('in', d => d);
+
+    // Arrow marker
+    defs.append('marker')
+        .attr('id', 'arrow-pipe')
+        .attr('viewBox', '0 -5 10 10')
+        .attr('refX', 10).attr('refY', 0)
+        .attr('markerWidth', 7).attr('markerHeight', 7)
+        .attr('orient', 'auto')
+        .append('path')
+        .attr('d', 'M0,-4L10,0L0,4')
+        .attr('fill', 'rgba(0,229,255,0.6)');
+
+    const stages = [
+        { x: 120, y: 45, w: 180, h: 45, label: 'C/C++ Source Code', sub: 'Input file (.c / .cpp)', grad: 'grad-input', icon: '📄' },
+        { x: 120, y: 130, w: 180, h: 45, label: 'Clang → LLVM IR', sub: 'Compile to .ll (IR)', grad: 'grad-ir', icon: '⚙️' },
+        { x: 120, y: 215, w: 180, h: 45, label: 'IR Parser → JSON', sub: 'Structured representation', grad: 'grad-ir', icon: '🔍' },
+        { x: 120, y: 300, w: 180, h: 45, label: 'Heterogeneous Graph', sub: 'CFG + DFG + Containment', grad: 'grad-graph', icon: '🕸️' },
+        { x: 120, y: 385, w: 180, h: 45, label: 'VulnGAT Model', sub: 'GNN inference', grad: 'grad-model', icon: '🧠' },
+        { x: 120, y: 470, w: 180, h: 45, label: 'CWE Prediction', sub: 'Multi-label classification', grad: 'grad-model', icon: '🎯' },
+
+        // Right column — repair path
+        { x: 530, y: 300, w: 180, h: 45, label: 'Node Scoring', sub: 'Attention + gradient', grad: 'grad-localize', icon: '🔥' },
+        { x: 530, y: 385, w: 180, h: 45, label: 'Subgraph Extract', sub: 'Vulnerable region', grad: 'grad-localize', icon: '✂️' },
+        { x: 530, y: 470, w: 180, h: 45, label: 'IR Repair Engine', sub: 'Rule-based patching', grad: 'grad-repair', icon: '🔧' },
+
+        // Right column — validation
+        { x: 800, y: 385, w: 180, h: 45, label: 'GNN Re-detection', sub: 'Validate patch', grad: 'grad-validate', icon: '🔁' },
+        { x: 800, y: 470, w: 180, h: 45, label: 'Patched LLVM IR', sub: 'Clean output', grad: 'grad-output', icon: '✅' },
+
+        // Bottom — carbon
+        { x: 460, y: 600, w: 200, h: 45, label: 'Carbon Emission Log', sub: 'Energy & CO₂ tracking', grad: 'grad-carbon', icon: '🌱' },
+    ];
+
+    // Connections
+    const connections = [
+        { from: 0, to: 1 }, { from: 1, to: 2 }, { from: 2, to: 3 },
+        { from: 3, to: 4 }, { from: 4, to: 5 },
+        { from: 5, to: 6, type: 'branch' },
+        { from: 6, to: 7 }, { from: 7, to: 8 },
+        { from: 8, to: 9, type: 'branch' },
+        { from: 9, to: 10 },
+        { from: 10, to: 11, type: 'down' },
+    ];
+
+    // Draw connections
+    connections.forEach(c => {
+        const s = stages[c.from], t = stages[c.to];
+        const sx = s.x + s.w / 2, sy = s.y + s.h;
+        const tx = t.x + t.w / 2, ty = t.y;
+
+        if (c.type === 'branch') {
+            // Right-angle connector
+            const midY = sy + (ty - sy) / 2;
+            svg.append('path')
+                .attr('d', `M${sx},${sy} L${sx},${midY} L${tx},${midY} L${tx},${ty}`)
+                .attr('fill', 'none')
+                .attr('stroke', 'rgba(0,229,255,0.35)')
+                .attr('stroke-width', 2)
+                .attr('marker-end', 'url(#arrow-pipe)');
+        } else {
+            svg.append('line')
+                .attr('x1', sx).attr('y1', sy)
+                .attr('x2', tx).attr('y2', ty)
+                .attr('stroke', 'rgba(0,229,255,0.35)')
+                .attr('stroke-width', 2)
+                .attr('marker-end', 'url(#arrow-pipe)');
+        }
+    });
+
+    // Feedback loop arrow (Validate → Graph)
+    svg.append('path')
+        .attr('d', `M${800 + 90},${385} L${800 + 90},${240} L${120 + 180 + 20},${300 + 22}`)
+        .attr('fill', 'none')
+        .attr('stroke', 'rgba(255,171,64,0.4)')
+        .attr('stroke-width', 2)
+        .attr('stroke-dasharray', '8,4')
+        .attr('marker-end', 'url(#arrow-pipe)');
+
+    svg.append('text')
+        .attr('x', 830).attr('y', 280)
+        .attr('fill', '#ffab40')
+        .attr('font-size', '10px')
+        .attr('font-weight', 600)
+        .text('← re-detect if vulns remain');
+
+    // Carbon dashed connection
+    svg.append('path')
+        .attr('d', `M${460 + 100},${600} L${460 + 100},${555} L${120 + 90},${515}`)
+        .attr('fill', 'none')
+        .attr('stroke', 'rgba(165,214,167,0.3)')
+        .attr('stroke-width', 1.5)
+        .attr('stroke-dasharray', '5,4');
+
+    svg.append('path')
+        .attr('d', `M${460 + 100},${555} L${800 + 90},${515}`)
+        .attr('fill', 'none')
+        .attr('stroke', 'rgba(165,214,167,0.3)')
+        .attr('stroke-width', 1.5)
+        .attr('stroke-dasharray', '5,4');
+
+    svg.append('text')
+        .attr('x', 560).attr('y', 570)
+        .attr('fill', '#a5d6a7')
+        .attr('font-size', '9px')
+        .attr('text-anchor', 'middle')
+        .text('tracks all phases');
+
+    // Draw stage boxes
+    stages.forEach((s, i) => {
+        const g = svg.append('g')
+            .attr('class', 'pipeline-node')
+            .attr('transform', `translate(${s.x}, ${s.y})`);
+
+        g.append('rect')
+            .attr('width', s.w).attr('height', s.h)
+            .attr('rx', 10)
+            .attr('fill', `url(#${s.grad})`)
+            .attr('opacity', 0.18)
+            .attr('stroke', `url(#${s.grad})`)
+            .attr('stroke-width', 1.2)
+            .attr('filter', 'url(#glow-pipe)');
+
+        g.append('rect')
+            .attr('width', s.w).attr('height', s.h)
+            .attr('rx', 10)
+            .attr('fill', 'transparent')
+            .attr('stroke', `url(#${s.grad})`)
+            .attr('stroke-width', 1.2);
+
+        // Icon
+        g.append('text')
+            .attr('x', 14).attr('y', s.h / 2 + 1)
+            .attr('dominant-baseline', 'middle')
+            .attr('font-size', '16px')
+            .text(s.icon);
+
+        // Label
+        g.append('text')
+            .attr('x', 36).attr('y', s.h / 2 - 5)
+            .attr('fill', '#e8eaf6')
+            .attr('font-size', '12px')
+            .attr('font-weight', 700)
+            .text(s.label);
+
+        g.append('text')
+            .attr('x', 36).attr('y', s.h / 2 + 10)
+            .attr('fill', '#8892b0')
+            .attr('font-size', '9px')
+            .text(s.sub);
+
+        // Tooltip
+        g.on('mouseover', function(evt) {
+            d3.select(this).select('rect').attr('opacity', 0.3);
+            showTooltip(evt, `<div style="font-weight:700;color:#00e5ff;">${s.icon} ${s.label}</div><div class="label">${s.sub}</div>`);
+        })
+        .on('mousemove', evt => tooltip.style('left', (evt.pageX+14)+'px').style('top', (evt.pageY-14)+'px'))
+        .on('mouseout', function() {
+            d3.select(this).select('rect').attr('opacity', 0.18);
+            hideTooltip();
+        });
+    });
+
+    // Section labels
+    const sections = [
+        { x: 45, y: 25, label: 'DETECTION PIPELINE', color: '#448aff' },
+        { x: 470, y: 280, label: 'LOCALIZATION & REPAIR', color: '#ffab40' },
+        { x: 740, y: 365, label: 'VALIDATION', color: '#ffd740' },
+    ];
+    sections.forEach(s => {
+        svg.append('text')
+            .attr('x', s.x).attr('y', s.y)
+            .attr('fill', s.color)
+            .attr('font-size', '9px')
+            .attr('font-weight', 700)
+            .attr('letter-spacing', '1.5px')
+            .attr('text-transform', 'uppercase')
+            .text(s.label);
+    });
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// 4. FEEDBACK LOOP
+// ═══════════════════════════════════════════════════════════════════
+function renderFeedbackLoop() {
+    const width = 900, height = 520;
+    const svg = d3.select('#feedback-loop').append('svg')
+        .attr('viewBox', `0 0 ${width} ${height}`)
+        .attr('preserveAspectRatio', 'xMidYMid meet');
+
+    const defs = svg.append('defs');
+    const glow = defs.append('filter').attr('id', 'glow-loop');
+    glow.append('feGaussianBlur').attr('stdDeviation', '5').attr('result', 'blur');
+    glow.append('feMerge').selectAll('feMergeNode').data(['blur', 'SourceGraphic'])
+        .join('feMergeNode').attr('in', d => d);
+
+    // Arrow marker
+    defs.append('marker')
+        .attr('id', 'arrow-loop')
+        .attr('viewBox', '0 -6 12 12')
+        .attr('refX', 12).attr('refY', 0)
+        .attr('markerWidth', 8).attr('markerHeight', 8)
+        .attr('orient', 'auto')
+        .append('path')
+        .attr('d', 'M0,-5L12,0L0,5')
+        .attr('fill', '#00e5ff');
+
+    const cx = 450, cy = 240, rx = 180, ry = 150;
+
+    // The 4 main stages positioned in a circle
+    const loopStages = [
+        { angle: -90, label: 'DETECT', sub: 'GNN Inference', icon: '🔍', color: '#448aff', detail: 'Run VulnGAT model to identify CWE vulnerabilities in the LLVM IR graph representation' },
+        { angle: 0, label: 'LOCALIZE', sub: 'Node Scoring', icon: '🎯', color: '#ffab40', detail: 'Compute attention + gradient importance scores to identify vulnerable IR instructions' },
+        { angle: 90, label: 'REPAIR', sub: 'IR Patching', icon: '🔧', color: '#69f0ae', detail: 'Apply rule-based repairs: overflow guards, null checks, division-by-zero protection' },
+        { angle: 180, label: 'VALIDATE', sub: 'Re-detection', icon: '✅', color: '#ffd740', detail: 'Re-run GNN to verify patch removed vulnerabilities without introducing new ones' },
+    ];
+
+    // Draw loop arc
+    const arcPath = d3.arc()
+        .innerRadius(0)
+        .outerRadius(0);
+
+    // Curved arrows between stages
+    loopStages.forEach((stage, i) => {
+        const next = loopStages[(i + 1) % 4];
+        const a1 = (stage.angle + 20) * Math.PI / 180;
+        const a2 = (next.angle - 20) * Math.PI / 180;
+
+        const x1 = cx + rx * Math.cos(a1), y1 = cy + ry * Math.sin(a1);
+        const x2 = cx + rx * Math.cos(a2), y2 = cy + ry * Math.sin(a2);
+        const midAngle = (stage.angle + next.angle) / 2 + (i === 3 ? 180 : 0);
+        const mR = (i === 3) ? 0.6 : 1.15;
+        const mx = cx + rx * mR * Math.cos(midAngle * Math.PI / 180);
+        const my = cy + ry * mR * Math.sin(midAngle * Math.PI / 180);
+
+        svg.append('path')
+            .attr('d', `M${x1},${y1} Q${mx},${my} ${x2},${y2}`)
+            .attr('fill', 'none')
+            .attr('stroke', stage.color)
+            .attr('stroke-width', 2.5)
+            .attr('stroke-opacity', 0.5)
+            .attr('marker-end', 'url(#arrow-loop)')
+            .attr('filter', 'url(#glow-loop)');
+    });
+
+    // Center label
+    svg.append('text')
+        .attr('x', cx).attr('y', cy - 14)
+        .attr('text-anchor', 'middle')
+        .attr('fill', '#8892b0')
+        .attr('font-size', '10px')
+        .attr('font-weight', 600)
+        .attr('letter-spacing', '2px')
+        .text('ITERATIVE');
+
+    svg.append('text')
+        .attr('x', cx).attr('y', cy + 4)
+        .attr('text-anchor', 'middle')
+        .attr('fill', '#00e5ff')
+        .attr('font-size', '18px')
+        .attr('font-weight', 800)
+        .text('SELF-HEALING');
+
+    svg.append('text')
+        .attr('x', cx).attr('y', cy + 22)
+        .attr('text-anchor', 'middle')
+        .attr('fill', '#8892b0')
+        .attr('font-size', '10px')
+        .attr('font-weight', 600)
+        .attr('letter-spacing', '2px')
+        .text('LOOP');
+
+    svg.append('text')
+        .attr('x', cx).attr('y', cy + 44)
+        .attr('text-anchor', 'middle')
+        .attr('fill', '#5a6380')
+        .attr('font-size', '9px')
+        .text('max 5 iterations');
+
+    // Draw stage nodes
+    loopStages.forEach((stage, i) => {
+        const a = stage.angle * Math.PI / 180;
+        const x = cx + rx * Math.cos(a);
+        const y = cy + ry * Math.sin(a);
+
+        const g = svg.append('g')
+            .attr('class', 'loop-stage')
+            .attr('transform', `translate(${x}, ${y})`)
+            .style('cursor', 'pointer');
+
+        // Background circle
+        g.append('circle')
+            .attr('r', 46)
+            .attr('fill', stage.color)
+            .attr('opacity', 0.08)
+            .attr('filter', 'url(#glow-loop)');
+
+        g.append('circle')
+            .attr('r', 42)
+            .attr('fill', 'var(--bg-card)')
+            .attr('stroke', stage.color)
+            .attr('stroke-width', 2.5);
+
+        // Icon
+        g.append('text')
+            .attr('text-anchor', 'middle')
+            .attr('dy', -8)
+            .attr('font-size', '20px')
+            .text(stage.icon);
+
+        // Label
+        g.append('text')
+            .attr('text-anchor', 'middle')
+            .attr('dy', 12)
+            .attr('fill', stage.color)
+            .attr('font-size', '11px')
+            .attr('font-weight', 800)
+            .attr('letter-spacing', '1px')
+            .text(stage.label);
+
+        // Sublabel below circle
+        g.append('text')
+            .attr('text-anchor', 'middle')
+            .attr('dy', 60)
+            .attr('fill', '#8892b0')
+            .attr('font-size', '10px')
+            .text(stage.sub);
+
+        // Tooltip
+        g.on('mouseover', evt => showTooltip(evt, `
+            <div style="font-weight:700;color:${stage.color};font-size:13px;">${stage.icon} ${stage.label}</div>
+            <div style="color:#8892b0;font-size:11px;margin-top:4px;max-width:220px;">${stage.detail}</div>
+        `))
+        .on('mousemove', evt => tooltip.style('left', (evt.pageX+14)+'px').style('top', (evt.pageY-14)+'px'))
+        .on('mouseout', hideTooltip);
+    });
+
+    // Exit conditions
+    const exits = [
+        { x: cx + 260, y: 70, text: '✔ All vulns fixed → EXIT', color: '#69f0ae' },
+        { x: cx + 260, y: 100, text: '⚠ No valid repair → EXIT', color: '#ffab40' },
+        { x: cx + 260, y: 130, text: '✘ Max iterations → EXIT', color: '#ff5252' },
+    ];
+
+    exits.forEach(e => {
+        svg.append('text')
+            .attr('x', e.x).attr('y', e.y)
+            .attr('fill', e.color)
+            .attr('font-size', '10px')
+            .attr('font-weight', 600)
+            .text(e.text);
+    });
+
+    // Exit condition label
+    svg.append('text')
+        .attr('x', cx + 260).attr('y', 50)
+        .attr('fill', '#5a6380')
+        .attr('font-size', '9px')
+        .attr('font-weight', 700)
+        .attr('letter-spacing', '1.5px')
+        .text('EXIT CONDITIONS');
+}
+
+function renderConvergence() {
+    const margin = { top: 30, right: 60, bottom: 40, left: 50 };
+    const width = 800 - margin.left - margin.right;
+    const height = 280 - margin.top - margin.bottom;
+
+    const svg = d3.select('#convergence-chart').append('svg')
+        .attr('viewBox', `0 0 ${width + margin.left + margin.right} ${height + margin.top + margin.bottom}`)
+        .attr('preserveAspectRatio', 'xMidYMid meet')
+        .append('g')
+        .attr('transform', `translate(${margin.left},${margin.top})`);
+
+    // Synthetic convergence data
+    const data = [
+        { iter: 0, vulns: 4, confidence: 0.92 },
+        { iter: 1, vulns: 3, confidence: 0.87 },
+        { iter: 2, vulns: 2, confidence: 0.78 },
+        { iter: 3, vulns: 1, confidence: 0.62 },
+        { iter: 4, vulns: 0, confidence: 0.0 },
+    ];
+
+    const x = d3.scaleLinear().domain([0, 4]).range([0, width]);
+    const yVulns = d3.scaleLinear().domain([0, 5]).range([height, 0]);
+    const yConf = d3.scaleLinear().domain([0, 1]).range([height, 0]);
+
+    // Grid
+    svg.append('g').attr('class', 'grid')
+        .call(d3.axisLeft(yVulns).ticks(5).tickSize(-width).tickFormat(''));
+
+    // Axes
+    svg.append('g').attr('class', 'axis')
+        .attr('transform', `translate(0,${height})`)
+        .call(d3.axisBottom(x).ticks(5).tickFormat(d => `Iter ${d}`));
+
+    svg.append('g').attr('class', 'axis')
+        .call(d3.axisLeft(yVulns).ticks(5));
+
+    svg.append('g').attr('class', 'axis')
+        .attr('transform', `translate(${width},0)`)
+        .call(d3.axisRight(yConf).ticks(5).tickFormat(d => `${(d*100).toFixed(0)}%`));
+
+    // Vulnerability count line
+    const vulnLine = d3.line().x(d => x(d.iter)).y(d => yVulns(d.vulns)).curve(d3.curveMonotoneX);
+    svg.append('path')
+        .datum(data)
+        .attr('fill', 'none')
+        .attr('stroke', '#ff5252')
+        .attr('stroke-width', 2.5)
+        .attr('d', vulnLine);
+
+    svg.selectAll('.vuln-dot')
+        .data(data)
+        .join('circle')
+        .attr('cx', d => x(d.iter)).attr('cy', d => yVulns(d.vulns))
+        .attr('r', 5).attr('fill', '#ff5252').attr('stroke', '#0a0e1a').attr('stroke-width', 2);
+
+    // Confidence line
+    const confLine = d3.line().x(d => x(d.iter)).y(d => yConf(d.confidence)).curve(d3.curveMonotoneX);
+    svg.append('path')
+        .datum(data)
+        .attr('fill', 'none')
+        .attr('stroke', '#69f0ae')
+        .attr('stroke-width', 2.5)
+        .attr('stroke-dasharray', '6,3')
+        .attr('d', confLine);
+
+    svg.selectAll('.conf-dot')
+        .data(data)
+        .join('circle')
+        .attr('cx', d => x(d.iter)).attr('cy', d => yConf(d.confidence))
+        .attr('r', 5).attr('fill', '#69f0ae').attr('stroke', '#0a0e1a').attr('stroke-width', 2);
+
+    // Area fill
+    const vulnArea = d3.area().x(d => x(d.iter)).y0(height).y1(d => yVulns(d.vulns)).curve(d3.curveMonotoneX);
+    svg.append('path').datum(data)
+        .attr('fill', 'rgba(255,82,82,0.08)').attr('d', vulnArea);
+
+    // Labels
+    svg.append('text').attr('x', -10).attr('y', -12).attr('fill', '#ff5252').attr('font-size', '10px').attr('font-weight', 600).text('Vulnerability Count');
+    svg.append('text').attr('x', width - 10).attr('y', -12).attr('fill', '#69f0ae').attr('font-size', '10px').attr('font-weight', 600).attr('text-anchor', 'end').text('Max Confidence');
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// 5. BASELINE COMPARISON
+// ═══════════════════════════════════════════════════════════════════
+function renderBaselineComparison() {
+    renderAccuracyChart();
+    renderEnergyChart();
+    renderEmissionsChart();
+}
+
+function renderAccuracyChart() {
+    const margin = { top: 40, right: 30, bottom: 60, left: 55 };
+    const width = 850 - margin.left - margin.right;
+    const height = 360 - margin.top - margin.bottom;
+
+    const svg = d3.select('#accuracy-chart').append('svg')
+        .attr('viewBox', `0 0 ${width + margin.left + margin.right} ${height + margin.top + margin.bottom}`)
+        .attr('preserveAspectRatio', 'xMidYMid meet')
+        .append('g')
+        .attr('transform', `translate(${margin.left},${margin.top})`);
+
+    const methods = ['VulnHGNN\n(Ours)', 'Devign\n(GNN)', 'SySeVR\n(LSTM)', 'Flawfinder\n(Static)', 'CodeBERT\n(Transformer)'];
+    const metrics = [
+        { name: 'Accuracy', color: '#00e5ff', values: [94.2, 82.1, 78.5, 65.3, 88.7] },
+        { name: 'F1 Score', color: '#b388ff', values: [91.8, 79.4, 75.2, 58.6, 85.9] },
+        { name: 'Recall', color: '#ff80ab', values: [93.1, 76.8, 80.1, 71.2, 84.3] },
+    ];
+
+    const x0 = d3.scaleBand().domain(methods).rangeRound([0, width]).paddingInner(0.25);
+    const x1 = d3.scaleBand().domain(metrics.map(m => m.name)).rangeRound([0, x0.bandwidth()]).padding(0.08);
+    const y = d3.scaleLinear().domain([0, 100]).range([height, 0]);
+
+    // Grid
+    svg.append('g').attr('class', 'grid')
+        .call(d3.axisLeft(y).ticks(5).tickSize(-width).tickFormat(''));
+
+    // Axes
+    svg.append('g').attr('class', 'axis')
+        .attr('transform', `translate(0,${height})`)
+        .call(d3.axisBottom(x0))
+        .selectAll('text')
+        .attr('font-size', '10px')
+        .each(function() {
+            const el = d3.select(this);
+            const parts = el.text().split('\n');
+            if (parts.length > 1) {
+                el.text('');
+                parts.forEach((line, i) => {
+                    el.append('tspan')
+                        .attr('x', 0)
+                        .attr('dy', i === 0 ? 0 : 14)
+                        .text(line);
+                });
+            }
+        });
+
+    svg.append('g').attr('class', 'axis')
+        .call(d3.axisLeft(y).ticks(5).tickFormat(d => d + '%'));
+
+    // Bars
+    methods.forEach((method, mi) => {
+        const g = svg.append('g').attr('transform', `translate(${x0(method)},0)`);
+
+        metrics.forEach((metric, ki) => {
+            const val = metric.values[mi];
+            const barX = x1(metric.name);
+            const barY = y(val);
+            const barH = height - barY;
+
+            // Gradient fill
+            g.append('rect')
+                .attr('x', barX)
+                .attr('y', height)
+                .attr('width', x1.bandwidth())
+                .attr('height', 0)
+                .attr('rx', 3)
+                .attr('fill', metric.color)
+                .attr('opacity', mi === 0 ? 0.85 : 0.5)
+                .on('mouseover', function(evt) {
+                    d3.select(this).attr('opacity', 1);
+                    showTooltip(evt, `
+                        <div class="label">${method.replace('\n', ' ')}</div>
+                        <div style="font-weight:700;color:${metric.color};font-size:14px;">${val}%</div>
+                        <div class="label">${metric.name}</div>
+                    `);
+                })
+                .on('mousemove', evt => tooltip.style('left', (evt.pageX+14)+'px').style('top', (evt.pageY-14)+'px'))
+                .on('mouseout', function() {
+                    d3.select(this).attr('opacity', mi === 0 ? 0.85 : 0.5);
+                    hideTooltip();
+                })
+                .transition()
+                .duration(800)
+                .delay(mi * 100 + ki * 50)
+                .attr('y', barY)
+                .attr('height', barH);
+
+            // Value label
+            g.append('text')
+                .attr('x', barX + x1.bandwidth() / 2)
+                .attr('y', barY - 5)
+                .attr('text-anchor', 'middle')
+                .attr('fill', metric.color)
+                .attr('font-size', '9px')
+                .attr('font-weight', 600)
+                .attr('font-family', "'JetBrains Mono', monospace")
+                .attr('opacity', 0)
+                .transition()
+                .duration(400)
+                .delay(mi * 100 + ki * 50 + 600)
+                .attr('opacity', 1)
+                .text(val + '%');
+        });
+    });
+
+    // "OURS" badge
+    svg.append('rect')
+        .attr('x', x0(methods[0]) + x0.bandwidth() / 2 - 22)
+        .attr('y', -28)
+        .attr('width', 44).attr('height', 18)
+        .attr('rx', 9)
+        .attr('fill', 'rgba(0,229,255,0.15)')
+        .attr('stroke', '#00e5ff')
+        .attr('stroke-width', 1);
+
+    svg.append('text')
+        .attr('x', x0(methods[0]) + x0.bandwidth() / 2)
+        .attr('y', -16)
+        .attr('text-anchor', 'middle')
+        .attr('fill', '#00e5ff')
+        .attr('font-size', '8px')
+        .attr('font-weight', 700)
+        .text('OURS');
+
+    // Legend
+    const legend = svg.append('g').attr('transform', `translate(${width - 200}, -25)`);
+    metrics.forEach((m, i) => {
+        const lg = legend.append('g').attr('transform', `translate(${i * 75}, 0)`);
+        lg.append('rect').attr('width', 10).attr('height', 10).attr('rx', 2).attr('fill', m.color).attr('opacity', 0.8);
+        lg.append('text').attr('x', 14).attr('y', 9).attr('fill', '#8892b0').attr('font-size', '10px').text(m.name);
+    });
+}
+
+function renderEnergyChart() {
+    renderHorizontalBar('#energy-chart', [
+        { method: 'VulnHGNN (Ours)', value: 0.031, color: '#00e5ff' },
+        { method: 'CodeBERT', value: 0.089, color: '#b388ff' },
+        { method: 'Devign', value: 0.045, color: '#ff80ab' },
+        { method: 'SySeVR', value: 0.067, color: '#ffab40' },
+        { method: 'Flawfinder', value: 0.012, color: '#69f0ae' },
+    ], 'kWh', 0.1);
+}
+
+function renderEmissionsChart() {
+    renderHorizontalBar('#emissions-chart', [
+        { method: 'VulnHGNN (Ours)', value: 12.4, color: '#00e5ff' },
+        { method: 'CodeBERT', value: 35.6, color: '#b388ff' },
+        { method: 'Devign', value: 18.2, color: '#ff80ab' },
+        { method: 'SySeVR', value: 26.8, color: '#ffab40' },
+        { method: 'Flawfinder', value: 4.8, color: '#69f0ae' },
+    ], 'g CO₂', 40);
+}
+
+function renderHorizontalBar(container, data, unit, maxVal) {
+    const margin = { top: 20, right: 60, bottom: 30, left: 120 };
+    const width = 450 - margin.left - margin.right;
+    const height = 260 - margin.top - margin.bottom;
+
+    const svg = d3.select(container).append('svg')
+        .attr('viewBox', `0 0 ${width + margin.left + margin.right} ${height + margin.top + margin.bottom}`)
+        .attr('preserveAspectRatio', 'xMidYMid meet')
+        .append('g')
+        .attr('transform', `translate(${margin.left},${margin.top})`);
+
+    const y = d3.scaleBand().domain(data.map(d => d.method)).range([0, height]).padding(0.3);
+    const x = d3.scaleLinear().domain([0, maxVal]).range([0, width]);
+
+    // Grid
+    svg.append('g').attr('class', 'grid')
+        .call(d3.axisBottom(x).ticks(5).tickSize(height).tickFormat(''))
+        .attr('transform', `translate(0,0)`);
+
+    // Axes
+    svg.append('g').attr('class', 'axis').call(d3.axisLeft(y))
+        .selectAll('text').attr('font-size', '10px');
+
+    svg.append('g').attr('class', 'axis')
+        .attr('transform', `translate(0,${height})`)
+        .call(d3.axisBottom(x).ticks(5).tickFormat(d => d + (unit === 'kWh' ? '' : '')));
+
+    // Bars
+    data.forEach((d, i) => {
+        svg.append('rect')
+            .attr('y', y(d.method))
+            .attr('x', 0)
+            .attr('height', y.bandwidth())
+            .attr('width', 0)
+            .attr('rx', 4)
+            .attr('fill', d.color)
+            .attr('opacity', d.method.includes('Ours') ? 0.85 : 0.45)
+            .on('mouseover', function(evt) {
+                d3.select(this).attr('opacity', 1);
+                showTooltip(evt, `<div class="label">${d.method}</div><div class="value" style="color:${d.color};font-size:16px;">${d.value} ${unit}</div>`);
+            })
+            .on('mousemove', evt => tooltip.style('left', (evt.pageX+14)+'px').style('top', (evt.pageY-14)+'px'))
+            .on('mouseout', function() {
+                d3.select(this).attr('opacity', d.method.includes('Ours') ? 0.85 : 0.45);
+                hideTooltip();
+            })
+            .transition()
+            .duration(700)
+            .delay(i * 100)
+            .attr('width', x(d.value));
+
+        // Value label
+        svg.append('text')
+            .attr('x', x(d.value) + 8)
+            .attr('y', y(d.method) + y.bandwidth() / 2 + 4)
+            .attr('fill', d.color)
+            .attr('font-size', '10px')
+            .attr('font-weight', 600)
+            .attr('font-family', "'JetBrains Mono', monospace")
+            .attr('opacity', 0)
+            .transition().duration(400).delay(i * 100 + 500)
+            .attr('opacity', 1)
+            .text(`${d.value} ${unit}`);
+    });
+
+    // "OURS" badge for first bar
+    if (data[0].method.includes('Ours')) {
+        svg.append('rect')
+            .attr('x', x(data[0].value) + 6)
+            .attr('y', y(data[0].method) - 2)
+            .attr('width', 0).attr('height', 0)
+            .attr('rx', 6)
+            .attr('fill', 'rgba(0,229,255,0.12)')
+            .attr('stroke', '#00e5ff')
+            .attr('stroke-width', 0.8);
+    }
+}
+
+
+// ═══════════════════════════════════════════════════════════════════
+// INIT: Render first section
+// ═══════════════════════════════════════════════════════════════════
+window._heatmapRendered = false;
+window._repairRendered = false;
+window._pipelineRendered = false;
+window._loopRendered = false;
+window._baselineRendered = false;
+
+renderHeatmap();
+window._heatmapRendered = true;
+</script>
+
+</body>
+</html>

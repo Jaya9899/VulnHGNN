@@ -1,0 +1,23 @@
+# Core ML
+torch>=2.0
+torch_geometric
+numpy
+pandas
+scikit-learn
+scipy
+
+# Graph
+networkx
+
+# Web server
+flask
+
+# Utilities
+tqdm
+matplotlib
+
+# Carbon emissions tracking
+codecarbon
+
+# Opcode embeddings
+gensim

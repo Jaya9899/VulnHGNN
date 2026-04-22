@@ -1,0 +1,13 @@
+{
+  "opcode_to_id": {
+    "<PAD>": 0,
+    "<UNK>": 1,
+    "load": 2,
+    "br": 3,
+    "alloca": 4,
+    "icmp": 5,
+    "call": 6,
+    "ret": 7
+  },
+  "vocab_size": 8
+}
