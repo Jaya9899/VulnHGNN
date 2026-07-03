@@ -1,6 +1,6 @@
 # VulnHGNN
 
-VulnHGNN is a tool we built to help detect, localize, and fix software vulnerabilities using Graph Neural Networks (GNNs). It comes with a web UI for when you want an interactive visual experience, as well as a command-line interface (CLI) for running automated pipelines. As a bonus, it also tracks the carbon emissions from running the models.
+VulnHGNN is a tool built to help detect, localize, and fix software vulnerabilities using Graph Neural Networks (GNNs). It comes with a web UI for when you want an interactive visual experience, as well as a command-line interface (CLI) for running automated pipelines. As a bonus, it also tracks the carbon emissions from running the models.
 
 ## What it does
 - Detects vulnerabilities automatically using PyTorch Geometric and GNNs.
